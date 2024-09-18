@@ -18,8 +18,8 @@ importers:
         specifier: ^2.2.5
         version: 2.2.5
       esbuild:
-        specifier: ^0.21.5
-        version: 0.21.5
+        specifier: ^0.23.1
+        version: 0.23.1
     devDependencies:
       '@changesets/cli':
         specifier: ^2.27.8
