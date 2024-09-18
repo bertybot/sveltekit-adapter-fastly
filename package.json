@@ -36,7 +36,8 @@
     "test": "vitest run",
     "check": "tsc",
     "lint": "prettier --check .",
-    "format": "pnpm lint --write"
+    "format": "pnpm lint --write",
+    "release": "changeset publish"
   },
   "dependencies": {
     "@fastly/compute-js-static-publish": "^6.1.0",
