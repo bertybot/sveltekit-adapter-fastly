@@ -1,63 +1,63 @@
 {
-	"name": "sveltekit-adapter-fastly",
-	"version": "0.0.1",
-	"description": "SvelteKit adapter for Fastly Compute@Edge",
-	"keywords": [
-		"adapter",
-		"fastly",
-		"edge",
-		"deploy",
-		"hosting",
-		"svelte",
-		"sveltekit"
-	],
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/bertybot/sveltekit-adapter-fastly.git"
-	},
-	"author": "Bert Bengtson",
-	"license": "MIT",
-	"type": "module",
-	"exports": {
-		".": {
-			"types": "./index.d.ts",
-			"import": "./index.js"
-		},
-		"./package.json": "./package.json"
-	},
-	"types": "index.d.ts",
-	"files": [
-		"ambient.d.ts",
-		"files",
-		"index.js",
-		"index.d.ts"
-	],
-	"scripts": {
-		"test": "vitest run",
-		"check": "tsc",
-		"lint": "prettier --check .",
-		"format": "pnpm lint --write"
-	},
-	"dependencies": {
-		"@fastly/compute-js-static-publish": "^6.1.0",
-		"@iarna/toml": "^2.2.5",
-		"esbuild": "^0.21.5"
-	},
-	"devDependencies": {
-		"@changesets/cli": "^2.27.8",
-		"@fastly/js-compute": "^3.7.0",
-		"@sveltejs/kit": "^2.5.18",
-		"@types/node": "^18.19.3",
-		"typescript": "^5.3.3",
-		"vitest": "^2.1.1"
-	},
-	"peerDependencies": {
-		"@fastly/compute-js-static-publish": "^6.1.0",
-		"@fastly/js-compute": "^3.7.0",
-		"@sveltejs/kit": "^2.0.0"
-	},
-	"packageManager": "pnpm@9.10.0",
-	"engines": {
-		"pnpm": "^9.0.0"
-	}
+  "name": "sveltekit-adapter-fastly",
+  "version": "0.0.1",
+  "description": "SvelteKit adapter for Fastly Compute@Edge",
+  "keywords": [
+    "adapter",
+    "fastly",
+    "edge",
+    "deploy",
+    "hosting",
+    "svelte",
+    "sveltekit"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bertybot/sveltekit-adapter-fastly.git"
+  },
+  "author": "Bert Bengtson",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "index.d.ts",
+  "files": [
+    "ambient.d.ts",
+    "files",
+    "index.js",
+    "index.d.ts"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "check": "tsc",
+    "lint": "prettier --check .",
+    "format": "pnpm lint --write"
+  },
+  "dependencies": {
+    "@fastly/compute-js-static-publish": "^6.1.0",
+    "@iarna/toml": "^2.2.5",
+    "esbuild": "^0.21.5"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.8",
+    "@fastly/js-compute": "^3.7.0",
+    "@sveltejs/kit": "^2.5.18",
+    "@types/node": "^18.19.3",
+    "typescript": "^5.3.3",
+    "vitest": "^2.1.1"
+  },
+  "peerDependencies": {
+    "@fastly/compute-js-static-publish": "^6.1.0",
+    "@fastly/js-compute": "^3.7.0",
+    "@sveltejs/kit": "^2.0.0"
+  },
+  "packageManager": "pnpm@9.10.0",
+  "engines": {
+    "pnpm": "^9.0.0"
+  }
 }

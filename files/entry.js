@@ -83,4 +83,3 @@ async function handleRequest(event) {
     },
   });
 }
-
