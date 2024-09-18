@@ -13,7 +13,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bertybot/sveltekit-adapter-fastly.git"
+    "url": "git+https://github.com/bertybot/svelte-adapter-fastly.git"
   },
   "author": "Bert Bengtson",
   "license": "MIT",
