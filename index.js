@@ -1,15 +1,20 @@
-import { writeFileSync } from "node:fs";
-import { posix } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { posix, resolve } from "node:path";
 import { execSync } from "node:child_process";
 import esbuild from "esbuild";
+import toml from "@iarna/toml";
+import readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
 /** @type {import('./index.js').default} */
 export default function (opts = {}) {
-  const { out = "bin" } = opts;
+  const { out = "bin", silent = false } = opts;
   return {
     name: "sveltekit-adapter-fastly",
     async adapt(builder) {
+      //validate fastly config
+      await validate_config(builder, silent);
+
       //Removing tmp directory if exists
       const files = fileURLToPath(new URL("./files", import.meta.url).href);
       const tmp = builder.getBuildDirectory("fastly-tmp");
@@ -21,13 +26,21 @@ export default function (opts = {}) {
       builder.writeClient(static_dir);
       builder.writePrerendered(static_dir);
 
-      // leverage @fastly/compute-js-static-publish to out put static files where i need them
-
-      builder.copy(
-        `${files}/static-publish.rc.js`,
-        `${tmp}/static-publish.rc.js`,
-        {}
-      );
+      if (opts.staticPublishConfig) {
+        await validate_static_publish_config(builder, opts.staticPublishConfig);
+        builder.copy(
+          opts.staticPublishConfig,
+          `${tmp}/static-publish.rc.js`,
+          {}
+        );
+      } else {
+        //sticking with default
+        builder.copy(
+          `${files}/static-publish.rc.js`,
+          `${tmp}/static-publish.rc.js`,
+          {}
+        );
+      }
 
       execSync(`npx @fastly/compute-js-static-publish --build-static`, {
         cwd: `${tmp}`,
@@ -72,7 +85,7 @@ export default function (opts = {}) {
 
       const external = ["fastly:*"];
 
-      console.log("Building worker...");
+      builder.log("Building worker...");
       try {
         const result = await esbuild.build({
           platform: "browser",
@@ -113,6 +126,10 @@ export default function (opts = {}) {
           });
 
           console.error(formatted.join("\n"));
+        } else {
+          builder.log(
+            "Fastly Worker built successfully run fastly compute serve to test locally"
+          );
         }
       } catch (error) {
         for (const e of error.errors) {
@@ -175,4 +192,115 @@ export default function (opts = {}) {
       };
     },
   };
+}
+
+/**
+ * @param {import('@sveltejs/kit').Builder} builder
+ * @param {string} file
+ */
+async function validate_static_publish_config(builder, file) {
+  if (!existsSync(file)) {
+    builder.log(
+      "No static-publish.rc.js file found. Using default configuration."
+    );
+    return;
+  }
+
+  const path = resolve(file);
+  const publishConfig = await import(path).then((m) => m.default);
+
+  if (publishConfig.rootDir !== "./static") {
+    builder.log.warn(
+      "RootDir is not ./static. This may cause issues with the adapter"
+    );
+  }
+
+  return true;
+}
+
+/**
+ * @param {import('@sveltejs/kit').Builder} builder
+ * @param {boolean} silent
+ * @returns {Promise<import('./index.js').FastlyConfig>}
+ */
+async function validate_config(builder, silent) {
+  if (existsSync("fastly.toml")) {
+    /** @type {import('./index.js').FastlyConfig} */
+    let fastly_config;
+
+    try {
+      fastly_config = /** @type {import('./index.js').FastlyConfig} */ (
+        toml.parse(readFileSync("fastly.toml", "utf-8"))
+      );
+    } catch (err) {
+      err.message = `Error parsing fastly.toml: ${err.message}`;
+      throw err;
+    }
+
+    if (fastly_config.language !== "javascript") {
+      throw new Error(
+        'You must specify `language = "javascript"` in fastly.toml.'
+      );
+    }
+
+    return fastly_config;
+  }
+
+  if (silent) {
+    throw new Error("Missing a fastly.toml file");
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const res = await rl.question("No fastly.toml file. Create one? (y/n): ");
+
+  if (res.toLowerCase() === "y") {
+    const name = await rl.question("Please enter name of project: ");
+    const service_id = await rl.question(
+      "Please enter service id of compute service: "
+    );
+    const author = await rl.question("Please enter author name: ");
+    rl.close();
+    writeFileSync(
+      "fastly.toml",
+      `manifest_version = 3
+service_id = "${service_id}"
+name = "${name}"
+description = "A SvelteKit project deployed on Fastly Compute@Edge"
+authors = ["${author}"]
+language = "javascript"
+
+[scripts]
+build = "npm run build"`,
+      {
+        encoding: "utf-8",
+      }
+    );
+
+    return {
+      manifest_version: 3,
+      name,
+      language: "javascript",
+    };
+  }
+
+  builder.log(
+    `
+		Sample fastly.toml:
+		
+    manifest_version = 3
+    service_id = "<your-service-id>"
+    name = "<your-site-name>"
+    description = "A SvelteKit project deployed on Fastly Compute@Edge"
+		authors = ["<your-name>"]
+    language = "javascript"`
+      .replace(/^\t+/gm, "")
+      .trim()
+  );
+  throw new Error(
+    "Missing a fastly.toml file. please create one and try again"
+  );
 }

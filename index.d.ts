@@ -7,6 +7,14 @@ export default function plugin(options?: AdapterOptions): Adapter;
 
 export interface AdapterOptions {
   out?: string;
+  staticPublishConfig?: string;
+  silent?: boolean;
 }
+
+export type FastlyConfig = {
+  manifest_version: number;
+  name: string;
+  language: "javascript";
+};
 
 export { Geolocation };
