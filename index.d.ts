@@ -5,8 +5,11 @@ import "./ambient.js";
 
 export default function plugin(options?: AdapterOptions): Adapter;
 
+export function handleSvelteKitRequest(event: FetchEvent): Promise<Response>;
+
 export interface AdapterOptions {
   out?: string;
+  entry?: string;
   staticPublishConfig?: string;
   silent?: boolean;
 }

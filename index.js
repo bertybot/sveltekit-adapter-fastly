@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 /** @type {import('./index.js').default} */
 export default function (opts = {}) {
-  const { out = "bin", silent = false } = opts;
+  const { out = "bin", silent = false, entry = "" } = opts;
   return {
     name: "sveltekit-adapter-fastly",
     async adapt(builder) {
@@ -46,6 +46,7 @@ export default function (opts = {}) {
         cwd: `${tmp}`,
         stdio: "inherit",
       });
+
       const workerSource = `${tmp}/src`;
       const relativePath = posix.relative(tmp, builder.getServerDirectory());
       const workerRelativePath = posix.relative(
@@ -53,13 +54,27 @@ export default function (opts = {}) {
         builder.getServerDirectory()
       );
 
-      builder.copy(`${files}/entry.js`, `${workerSource}/index.js`, {
-        replace: {
-          SERVER: `${workerRelativePath}/index.js`,
-          MANIFEST: `${tmp}/manifest.js`,
-          STATICS: `../static-publisher/statics.js`,
-        },
-      });
+      builder.copy(
+        `${files}/handleSvelteKitRequest.js`,
+        `${workerSource}/handleSvelteKitRequest.js`,
+        {
+          replace: {
+            SERVER: `${workerRelativePath}/index.js`,
+            MANIFEST: `${tmp}/manifest.js`,
+            STATICS: `../static-publisher/statics.js`,
+          },
+        }
+      );
+
+      builder.copy(
+        entry ? entry : `${files}/entry.js`,
+        `${workerSource}/entry.js`,
+        {
+          replace: {
+            "svelte-adapter-fastly": `./handleSvelteKitRequest.js`,
+          },
+        }
+      );
 
       let prerendered_entries = Array.from(builder.prerendered.pages.entries());
 
@@ -83,54 +98,21 @@ export default function (opts = {}) {
           )};\n`
       );
 
-      const external = ["fastly:*"];
-
       builder.log("Building worker...");
-      try {
-        const result = await esbuild.build({
-          platform: "browser",
-          allowOverwrite: true,
-          conditions: ["workerd", "worker", "browser"],
-          target: "es2022",
-          entryPoints: [`${tmp}/src/index.js`],
-          outfile: `${tmp}/src/index.js`,
-          bundle: true,
-          external,
-          format: "esm",
-          loader: {
-            ".wasm": "copy",
-            ".woff": "copy",
-            ".woff2": "copy",
-            ".ttf": "copy",
-            ".eot": "copy",
-            ".otf": "copy",
-          },
-          logLevel: "silent",
-        });
 
+      try {
         console.log("creating wasm file");
         execSync(
-          `npx --package @fastly/js-compute js-compute-runtime src/index.js ./bin/main.wasm`,
+          `npx --package @fastly/js-compute js-compute-runtime src/entry.js ./bin/main.wasm`,
           {
             cwd: `${tmp}`,
             stdio: "inherit",
           }
         );
-
         builder.copy(`${tmp}/bin/main.wasm`, `${out}/main.wasm`, {});
-
-        if (result.warnings.length > 0) {
-          const formatted = await esbuild.formatMessages(result.warnings, {
-            kind: "warning",
-            color: true,
-          });
-
-          console.error(formatted.join("\n"));
-        } else {
-          builder.log(
-            "Fastly Worker built successfully run fastly compute serve to test locally"
-          );
-        }
+        builder.log(
+          "Fastly Worker built successfully run fastly compute serve to test locally"
+        );
       } catch (error) {
         for (const e of error.errors) {
           for (const node of e.notes) {
