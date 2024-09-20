@@ -1,7 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { posix, resolve } from "node:path";
 import { execSync } from "node:child_process";
-import esbuild from "esbuild";
 import toml from "@iarna/toml";
 import readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
@@ -100,46 +99,18 @@ export default function (opts = {}) {
 
       builder.log("Building worker...");
 
-      try {
-        console.log("creating wasm file");
-        execSync(
-          `npx --package @fastly/js-compute js-compute-runtime src/entry.js ./bin/main.wasm`,
-          {
-            cwd: `${tmp}`,
-            stdio: "inherit",
-          }
-        );
-        builder.copy(`${tmp}/bin/main.wasm`, `${out}/main.wasm`, {});
-        builder.log(
-          "Fastly Worker built successfully run fastly compute serve to test locally"
-        );
-      } catch (error) {
-        for (const e of error.errors) {
-          for (const node of e.notes) {
-            const match =
-              /The package "(.+)" wasn't found on the file system but is built into node/.exec(
-                node.text
-              );
-
-            if (match) {
-              node.text = `Cannot use "${match[1]}" when deploying to Fastly.`;
-            }
-          }
+      console.log("creating wasm file");
+      execSync(
+        `npx --package @fastly/js-compute js-compute-runtime src/entry.js ./bin/main.wasm`,
+        {
+          cwd: `${tmp}`,
+          stdio: "inherit",
         }
-
-        const formatted = await esbuild.formatMessages(error.errors, {
-          kind: "error",
-          color: true,
-        });
-
-        console.error(formatted.join("\n"));
-
-        throw new Error(
-          `Bundling with esbuild failed with ${error.errors.length} ${
-            error.errors.length === 1 ? "error" : "errors"
-          }`
-        );
-      }
+      );
+      builder.copy(`${tmp}/bin/main.wasm`, `${out}/main.wasm`, {});
+      builder.log(
+        "Fastly Worker built successfully run fastly compute serve to test locally"
+      );
     },
     async emulate() {
       /** @type {import('fastly:geolocation').Geolocation} */
