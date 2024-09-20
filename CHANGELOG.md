@@ -1,5 +1,12 @@
 # sveltekit-adapter-fastly
 
+## 0.0.5
+
+### Patch Changes
+
+- 5b1be3b: Add Ability to supply custom entry files
+  Removed unnecessary build step.
+
 ## 0.0.4
 
 ### Patch Changes
