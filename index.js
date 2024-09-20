@@ -1,14 +1,13 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { posix, resolve } from "node:path";
 import { execSync } from "node:child_process";
-import esbuild from "esbuild";
 import toml from "@iarna/toml";
 import readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
 /** @type {import('./index.js').default} */
 export default function (opts = {}) {
-  const { out = "bin", silent = false } = opts;
+  const { out = "bin", silent = false, entry = "" } = opts;
   return {
     name: "sveltekit-adapter-fastly",
     async adapt(builder) {
@@ -46,6 +45,7 @@ export default function (opts = {}) {
         cwd: `${tmp}`,
         stdio: "inherit",
       });
+
       const workerSource = `${tmp}/src`;
       const relativePath = posix.relative(tmp, builder.getServerDirectory());
       const workerRelativePath = posix.relative(
@@ -53,13 +53,27 @@ export default function (opts = {}) {
         builder.getServerDirectory()
       );
 
-      builder.copy(`${files}/entry.js`, `${workerSource}/index.js`, {
-        replace: {
-          SERVER: `${workerRelativePath}/index.js`,
-          MANIFEST: `${tmp}/manifest.js`,
-          STATICS: `../static-publisher/statics.js`,
-        },
-      });
+      builder.copy(
+        `${files}/handleSvelteKitRequest.js`,
+        `${workerSource}/handleSvelteKitRequest.js`,
+        {
+          replace: {
+            SERVER: `${workerRelativePath}/index.js`,
+            MANIFEST: `${tmp}/manifest.js`,
+            STATICS: `../static-publisher/statics.js`,
+          },
+        }
+      );
+
+      builder.copy(
+        entry ? entry : `${files}/entry.js`,
+        `${workerSource}/entry.js`,
+        {
+          replace: {
+            "svelte-adapter-fastly": `./handleSvelteKitRequest.js`,
+          },
+        }
+      );
 
       let prerendered_entries = Array.from(builder.prerendered.pages.entries());
 
@@ -83,81 +97,20 @@ export default function (opts = {}) {
           )};\n`
       );
 
-      const external = ["fastly:*"];
-
       builder.log("Building worker...");
-      try {
-        const result = await esbuild.build({
-          platform: "browser",
-          allowOverwrite: true,
-          conditions: ["workerd", "worker", "browser"],
-          target: "es2022",
-          entryPoints: [`${tmp}/src/index.js`],
-          outfile: `${tmp}/src/index.js`,
-          bundle: true,
-          external,
-          format: "esm",
-          loader: {
-            ".wasm": "copy",
-            ".woff": "copy",
-            ".woff2": "copy",
-            ".ttf": "copy",
-            ".eot": "copy",
-            ".otf": "copy",
-          },
-          logLevel: "silent",
-        });
 
-        console.log("creating wasm file");
-        execSync(
-          `npx --package @fastly/js-compute js-compute-runtime src/index.js ./bin/main.wasm`,
-          {
-            cwd: `${tmp}`,
-            stdio: "inherit",
-          }
-        );
-
-        builder.copy(`${tmp}/bin/main.wasm`, `${out}/main.wasm`, {});
-
-        if (result.warnings.length > 0) {
-          const formatted = await esbuild.formatMessages(result.warnings, {
-            kind: "warning",
-            color: true,
-          });
-
-          console.error(formatted.join("\n"));
-        } else {
-          builder.log(
-            "Fastly Worker built successfully run fastly compute serve to test locally"
-          );
+      console.log("creating wasm file");
+      execSync(
+        `npx --package @fastly/js-compute js-compute-runtime src/entry.js ./bin/main.wasm`,
+        {
+          cwd: `${tmp}`,
+          stdio: "inherit",
         }
-      } catch (error) {
-        for (const e of error.errors) {
-          for (const node of e.notes) {
-            const match =
-              /The package "(.+)" wasn't found on the file system but is built into node/.exec(
-                node.text
-              );
-
-            if (match) {
-              node.text = `Cannot use "${match[1]}" when deploying to Fastly.`;
-            }
-          }
-        }
-
-        const formatted = await esbuild.formatMessages(error.errors, {
-          kind: "error",
-          color: true,
-        });
-
-        console.error(formatted.join("\n"));
-
-        throw new Error(
-          `Bundling with esbuild failed with ${error.errors.length} ${
-            error.errors.length === 1 ? "error" : "errors"
-          }`
-        );
-      }
+      );
+      builder.copy(`${tmp}/bin/main.wasm`, `${out}/main.wasm`, {});
+      builder.log(
+        "Fastly Worker built successfully run fastly compute serve to test locally"
+      );
     },
     async emulate() {
       /** @type {import('fastly:geolocation').Geolocation} */
